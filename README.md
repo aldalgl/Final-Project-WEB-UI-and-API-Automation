@@ -188,7 +188,8 @@ Untuk API test lewat IntelliJ, tambahkan VM option `-Dapp.id=YOUR_APP_ID` di Run
 ```bash
 ./gradlew allureServe
 ```
-<img src="/Users/aldalgl/Documents/Screenshoot/Screenshot 2026-08-11 at 17.50.00.png"/>
+![Uploading Screenshot 2026-08-11 at 17.50.00.png…]()
+
 
 Otomatis membuka laporan interaktif di browser: ringkasan pass/fail, breakdown per feature, waktu eksekusi, dan
 screenshot otomatis untuk scenario Web yang gagal.
