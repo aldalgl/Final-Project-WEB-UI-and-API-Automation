@@ -1,0 +1,118 @@
+plugins {
+    id 'java'
+    id 'io.qameta.allure' version '2.11.2'
+}
+
+group = 'com.qafinal'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+ext {
+    cucumberVersion    = '7.18.1'
+    seleniumVersion    = '4.24.0'
+    testngVersion      = '7.10.2'
+    restAssuredVersion = '5.5.0'
+    allureVersion      = '2.27.0'
+}
+
+dependencies {
+    // ---------- Cucumber (BDD / Gherkin, dipakai untuk Web maupun API test) ----------
+    testImplementation "io.cucumber:cucumber-java:${cucumberVersion}"
+    testImplementation "io.cucumber:cucumber-testng:${cucumberVersion}"
+
+    // ---------- TestNG (test runner) ----------
+    testImplementation "org.testng:testng:${testngVersion}"
+
+    // ---------- Selenium WebDriver (Web UI automation - demoblaze.com) ----------
+    testImplementation "org.seleniumhq.selenium:selenium-java:${seleniumVersion}"
+    testImplementation 'io.github.bonigarcia:webdrivermanager:5.9.2'
+
+    // ---------- REST Assured (API automation - dummyapi.io) ----------
+    testImplementation "io.rest-assured:rest-assured:${restAssuredVersion}"
+    testImplementation "io.rest-assured:json-path:${restAssuredVersion}"
+
+    // ---------- Allure Report ----------
+    testImplementation "io.qameta.allure:allure-cucumber7-jvm:${allureVersion}"
+    testImplementation "io.qameta.allure:allure-testng:${allureVersion}"
+}
+
+allure {
+    version = allureVersion
+    useTestNG {
+        version = allureVersion
+    }
+}
+
+// Ambil APP_ID dari system property -Dapp.id=xxx ATAU environment variable APP_ID (dipakai oleh API test)
+def resolvedAppId = { ->
+    def prop = System.getProperty('app.id')
+    if (prop != null && !prop.isBlank()) return prop
+    def env = System.getenv('APP_ID')
+    return env != null ? env : ''
+}
+
+// Plugin Cucumber yang dipakai bersama supaya hasil test otomatis terkirim ke Allure
+def allureCucumberPlugin = 'io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm'
+
+// Task bawaan Gradle: menjalankan SEMUA test (Web + API) sekaligus, auto-discovery kelas TestNG
+test {
+    useTestNG()
+    // Nama class runner kita ("WebTestRunner"/"ApiTestRunner") tidak cocok pola default Gradle
+    // (**/*Test.class, **/*Tests.class), jadi harus di-include manual di sini.
+    include '**/*TestRunner.class'
+    systemProperty 'cucumber.plugin', allureCucumberPlugin
+    systemProperty 'app.id', resolvedAppId()
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+        showStandardStreams = true
+    }
+}
+
+// ==================== Task khusus #1: hanya test bertag @api ====================
+task apiTest(type: Test) {
+    description = 'Menjalankan seluruh Cucumber scenario dengan tag @api (API test - dummyapi.io)'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    // Matikan pattern-matching nama class bawaan Gradle - class yang dijalankan
+    // sepenuhnya ditentukan oleh <class name="..."/> di testng-api.xml
+    scanForTestClasses = false
+    useTestNG {
+        suites 'src/test/resources/suites/testng-api.xml'
+    }
+    systemProperty 'cucumber.plugin', allureCucumberPlugin
+    systemProperty 'app.id', resolvedAppId()
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+        showStandardStreams = true
+    }
+}
+
+// ==================== Task khusus #2: hanya test bertag @web ====================
+task webTest(type: Test) {
+    description = 'Menjalankan seluruh Cucumber scenario dengan tag @web (Web UI test - demoblaze.com)'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    scanForTestClasses = false
+    useTestNG {
+        suites 'src/test/resources/suites/testng-web.xml'
+    }
+    systemProperty 'cucumber.plugin', allureCucumberPlugin
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+        showStandardStreams = true
+    }
+}
